@@ -4,6 +4,7 @@ terraform.tfvars
 *.tfstate
 *.tfstate.backup
 *.tfplan
+tfplan
 crash.log
 override.tf
 .DS_Store
