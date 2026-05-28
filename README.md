@@ -60,15 +60,15 @@ A test EC2 in each VPC provides a ping target. The included verification ping te
 
 ### The Three Peering Rules
 
-1. **prod â†” shared-services**: Prod needs DNS, shared storage, monitoring
-2. **dev â†” shared-services**: Dev needs the same shared tooling
-3. **prod â†” dev: NOT PEERED** — no peering connection exists between them
+1. **prod ↔ shared-services**: Prod needs DNS, shared storage, monitoring
+2. **dev ↔ shared-services**: Dev needs the same shared tooling
+3. **prod ↔ dev: NOT PEERED** — no peering connection exists between them
 
-VPC peering is non-transitive by design. Even if prodâ†’shared and devâ†’shared both exist, traffic cannot flow prodâ†’sharedâ†’dev. You'd need Transit Gateway for that, and we explicitly don't want it here.
+VPC peering is non-transitive by design. Even if prod→shared and dev→shared both exist, traffic cannot flow prod→shared→dev. You'd need Transit Gateway for that, and we explicitly don't want it here.
 
 ### Why Not Transit Gateway?
 
-TGW enables full mesh routing between all attached VPCs by default. You'd have to explicitly configure route tables to block prodâ†”dev traffic, and that's easy to misconfigure. With peering, the absence of a connection is the security control — there's nothing to misconfigure.
+TGW enables full mesh routing between all attached VPCs by default. You'd have to explicitly configure route tables to block prod↔dev traffic, and that's easy to misconfigure. With peering, the absence of a connection is the security control — there's nothing to misconfigure.
 
 **When you'd upgrade to TGW:** More than ~10 VPCs, need for centralized inspection via a firewall appliance, or cross-region routing. See the "Scaling" section below.
 
@@ -103,14 +103,14 @@ key_pair = "your-key-pair-name"
 ### What Gets Built
 
 - 3 VPCs with public subnets
-- 2 VPC peering connections (prodâ†”shared, devâ†”shared)
+- 2 VPC peering connections (prod↔shared, dev↔shared)
 - Route tables routing peered CIDR ranges through peering connections
 - 1 test EC2 in each VPC
 - Security groups allowing ICMP within valid peered ranges only
 
 ## Verification
 
-### Test 1: prod â†’ shared-services (should succeed)
+### Test 1: prod → shared-services (should succeed)
 
 ```bash
 ssh ubuntu@<prod_test_ip>
@@ -118,7 +118,7 @@ ping <shared_test_private_ip>
 # Expected: replies
 ```
 
-### Test 2: dev â†’ shared-services (should succeed)
+### Test 2: dev → shared-services (should succeed)
 
 ```bash
 ssh ubuntu@<dev_test_ip>
@@ -126,7 +126,7 @@ ping <shared_test_private_ip>
 # Expected: replies
 ```
 
-### Test 3: prod â†’ dev (should FAIL — this is the point)
+### Test 3: prod → dev (should FAIL — this is the point)
 
 ```bash
 ssh ubuntu@<prod_test_ip>
@@ -138,7 +138,7 @@ The failed ping is the success condition. Screenshot it and label it "segmentati
 
 See `Documentation/` for expected output from all three tests.
 
-## Scaling: Hub-and-Spoke â†’ Transit Gateway
+## Scaling: Hub-and-Spoke → Transit Gateway
 
 | Aspect | VPC Peering (this lab) | AWS Transit Gateway |
 |--------|----------------------|---------------------|
@@ -162,7 +162,7 @@ See `Documentation/` for expected output from all three tests.
 
 | Resource | Monthly Cost |
 |----------|-------------|
-| 3Ã— t2.micro test instances (Free Tier) | $0 |
+| 3× t2.micro test instances (Free Tier) | $0 |
 | VPC Peering (connection itself) | $0 |
 | Data transfer across peering | $0.01/GB (same region) |
 | **Total** | **~$0** |
@@ -171,7 +171,7 @@ See `Documentation/` for expected output from all three tests.
 
 - VPC peering is non-transitive — I expected traffic to route through the shared VPC, but AWS explicitly doesn't allow it. The absence of a peering connection IS the security control
 - Route table entries are directional — adding a route in prod's table pointing to shared doesn't automatically add the return route in shared's table
-- The failed ping (prodâ†’dev) is the screenshot that matters most — it's proof the segmentation actually works, not just that it was configured
+- The failed ping (prod→dev) is the screenshot that matters most — it's proof the segmentation actually works, not just that it was configured
 - This is the cloud equivalent of a VLAN ACL: you're not filtering with rules, you're controlling reachability by controlling routing
 
 ## Related Projects
