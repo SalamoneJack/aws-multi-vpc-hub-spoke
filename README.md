@@ -5,54 +5,50 @@
 ![VPC Peering](https://img.shields.io/badge/VPC-Peering-informational)
 ![Status](https://img.shields.io/badge/Status-Complete-brightgreen)
 
-Enterprise-grade network segmentation using a hub-and-spoke VPC topology. Three VPCs â€” `prod`, `dev`, and `shared-services` â€” connected via VPC peering with route tables that enforce strict segmentation: prod and dev can each reach shared services, but cannot reach each other.
+Enterprise-grade network segmentation using a hub-and-spoke VPC topology. Three VPCs — `prod`, `dev`, and `shared-services` — connected via VPC peering with route tables that enforce strict segmentation: prod and dev can each reach shared services, but cannot reach each other.
 
 > ### "The failed ping IS the success screenshot"
 >
-> Captured live across 4 SSH-driven ping tests between the 3 test instances. Both spokes reach the hub (sub-1ms); **neither spoke can reach the other** â€” proving the security model is enforced at the network layer, not by trust.
+> Captured live across 4 SSH-driven ping tests between the 3 test instances. Both spokes reach the hub (sub-1ms); **neither spoke can reach the other** — proving the security model is enforced at the network layer, not by trust.
 >
 > ```
-> prod â†’ shared : 0% loss, 0.563ms avg    âœ“ via sharedâ†”prod peering
-> dev  â†’ shared : 0% loss, 0.583ms avg    âœ“ via sharedâ†”dev peering
-> prod â†’ dev    : 100% packet loss        âœ— no peering, no route
-> dev  â†’ prod   : 100% packet loss        âœ— no peering, no route
+> prod -> shared : 0% loss, 0.563ms avg    OK   via shared<->prod peering
+> dev  -> shared : 0% loss, 0.583ms avg    OK   via shared<->dev peering
+> prod -> dev    : 100% packet loss        FAIL no peering, no route
+> dev  -> prod   : 100% packet loss        FAIL no peering, no route
 > ```
 >
-> **Full evidence + raw AWS describe JSON:** [`evidence/`](evidence/)
+> Supporting captures (raw AWS describes, peering JSON, architecture): [`Documentation/`](Documentation/)
+
+## Repository Tour
+
+- **[`terraform/`](terraform/)** — 3 VPCs, 2 peerings, route tables, security groups, test EC2s
+- **[`Documentation/`](Documentation/)** — deployment evidence (4-way ping tests captured live), AWS describes, architecture
 
 ## The Problem
 
 In enterprise networks, you don't put production and development on the same segment. A misconfigured dev workload shouldn't be able to reach a production database. This is the cloud equivalent of a foundational network design principle: segment by security zone, then explicitly allow only what's required.
 
-The hub-and-spoke model solves this by routing all inter-environment traffic through a central point (shared-services), giving you a single place to add firewalls, DNS, monitoring, or shared tooling â€” without letting environments talk directly.
+The hub-and-spoke model solves this by routing all inter-environment traffic through a central point (shared-services), giving you a single place to add firewalls, DNS, monitoring, or shared tooling — without letting environments talk directly.
 
 ## Architecture
 
-```
-                    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-                    â”‚   Shared-Services VPC     â”‚
-                    â”‚   10.0.0.0/16             â”‚
-                    â”‚                          â”‚
-                    â”‚  â€¢ Internal DNS (Route53) â”‚
-                    â”‚  â€¢ Bastion Host           â”‚
-                    â”‚  â€¢ Shared tooling         â”‚
-                    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-                                â”‚ VPC Peering
-               â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-               â”‚                                 â”‚
-    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”           â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-    â”‚   Prod VPC          â”‚           â”‚   Dev VPC           â”‚
-    â”‚   10.10.0.0/16      â”‚           â”‚   10.20.0.0/16      â”‚
-    â”‚                     â”‚           â”‚                     â”‚
-    â”‚  â€¢ Production        â”‚    âœ—     â”‚  â€¢ Development       â”‚
-    â”‚    workloads        â”‚â—„â”€â”€â”€â”€â”€â”€â”€â”€â”€â–ºâ”‚    workloads         â”‚
-    â”‚  â€¢ Strict SGs        â”‚ BLOCKED  â”‚  â€¢ Relaxed SGs       â”‚
-    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜           â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-          Can reach shared                  Can reach shared
-          CANNOT reach dev                  CANNOT reach prod
-```
 
-*Full diagram: [docs/architecture.png](docs/architecture.png)*
+
+Three isolated VPCs - one hub (shared services) and two spokes (prod and dev) - connected via VPC peering with route tables that enforce strict spoke-to-spoke isolation:
+
+| VPC | CIDR | Role | Peerings |
+|---|---|---|---|
+| `shared-services` | 10.0.0.0/16 | Hub for shared workloads (DNS, bastion, tooling) | <-> prod, <-> dev |
+| `prod` | 10.10.0.0/16 | Production spoke | <-> shared only |
+| `dev` | 10.20.0.0/16 | Development spoke | <-> shared only |
+
+**No peering exists between prod and dev.** Each spoke can reach the hub but cannot reach the other spoke - the absence of a peering connection is the security control.
+
+A test EC2 in each VPC provides a ping target. The included verification ping tests prove the model: both spokes reach the hub (sub-1ms RTT), neither spoke can reach the other (100% packet loss, no route).
+
+
+*Full diagram: [Documentation/architecture.md](Documentation/architecture.md)*
 
 | VPC | CIDR | Purpose |
 |-----|------|---------|
@@ -66,13 +62,13 @@ The hub-and-spoke model solves this by routing all inter-environment traffic thr
 
 1. **prod â†” shared-services**: Prod needs DNS, shared storage, monitoring
 2. **dev â†” shared-services**: Dev needs the same shared tooling
-3. **prod â†” dev: NOT PEERED** â€” no peering connection exists between them
+3. **prod â†” dev: NOT PEERED** — no peering connection exists between them
 
 VPC peering is non-transitive by design. Even if prodâ†’shared and devâ†’shared both exist, traffic cannot flow prodâ†’sharedâ†’dev. You'd need Transit Gateway for that, and we explicitly don't want it here.
 
 ### Why Not Transit Gateway?
 
-TGW enables full mesh routing between all attached VPCs by default. You'd have to explicitly configure route tables to block prodâ†”dev traffic, and that's easy to misconfigure. With peering, the absence of a connection is the security control â€” there's nothing to misconfigure.
+TGW enables full mesh routing between all attached VPCs by default. You'd have to explicitly configure route tables to block prodâ†”dev traffic, and that's easy to misconfigure. With peering, the absence of a connection is the security control — there's nothing to misconfigure.
 
 **When you'd upgrade to TGW:** More than ~10 VPCs, need for centralized inspection via a firewall appliance, or cross-region routing. See the "Scaling" section below.
 
@@ -130,17 +126,17 @@ ping <shared_test_private_ip>
 # Expected: replies
 ```
 
-### Test 3: prod â†’ dev (should FAIL â€” this is the point)
+### Test 3: prod â†’ dev (should FAIL — this is the point)
 
 ```bash
 ssh ubuntu@<prod_test_ip>
 ping <dev_test_private_ip>
-# Expected: Request timeout â€” no route exists
+# Expected: Request timeout — no route exists
 ```
 
 The failed ping is the success condition. Screenshot it and label it "segmentation working."
 
-See `evidence/` for expected output from all three tests.
+See `Documentation/` for expected output from all three tests.
 
 ## Scaling: Hub-and-Spoke â†’ Transit Gateway
 
@@ -160,7 +156,7 @@ See `evidence/` for expected output from all three tests.
 - Add a Network Firewall or third-party appliance in the shared-services VPC for east-west inspection
 - Use AWS RAM (Resource Access Manager) to share resources across AWS Organization accounts, not just VPCs
 - DNS: Route 53 Resolver with inbound/outbound endpoints for hybrid DNS resolution
-- Flow Logs on all three VPCs â€” see [aws-network-monitoring](https://github.com/SalamoneJack/aws-network-monitoring)
+- Flow Logs on all three VPCs — see [aws-network-monitoring](https://github.com/SalamoneJack/aws-network-monitoring)
 
 ## Cost
 
@@ -173,13 +169,13 @@ See `evidence/` for expected output from all three tests.
 
 ## What I Learned
 
-- VPC peering is non-transitive â€” I expected traffic to route through the shared VPC, but AWS explicitly doesn't allow it. The absence of a peering connection IS the security control
-- Route table entries are directional â€” adding a route in prod's table pointing to shared doesn't automatically add the return route in shared's table
-- The failed ping (prodâ†’dev) is the screenshot that matters most â€” it's proof the segmentation actually works, not just that it was configured
+- VPC peering is non-transitive — I expected traffic to route through the shared VPC, but AWS explicitly doesn't allow it. The absence of a peering connection IS the security control
+- Route table entries are directional — adding a route in prod's table pointing to shared doesn't automatically add the return route in shared's table
+- The failed ping (prodâ†’dev) is the screenshot that matters most — it's proof the segmentation actually works, not just that it was configured
 - This is the cloud equivalent of a VLAN ACL: you're not filtering with rules, you're controlling reachability by controlling routing
 
 ## Related Projects
 
-- [aws-hybrid-vpn-lab](https://github.com/SalamoneJack/aws-hybrid-vpn-lab) â€” Hybrid connectivity: connecting this to on-prem
-- [aws-ha-web-app](https://github.com/SalamoneJack/aws-ha-web-app) â€” Deploying workloads into a segmented network
-- [terraform-aws-vpc-module](https://github.com/SalamoneJack/terraform-aws-vpc-module) â€” Reusable Terraform module for this VPC pattern
+- [aws-hybrid-vpn-lab](https://github.com/SalamoneJack/aws-hybrid-vpn-lab) — Hybrid connectivity: connecting this to on-prem
+- [aws-ha-web-app](https://github.com/SalamoneJack/aws-ha-web-app) — Deploying workloads into a segmented network
+- [terraform-aws-vpc-module](https://github.com/SalamoneJack/terraform-aws-vpc-module) — Reusable Terraform module for this VPC pattern
