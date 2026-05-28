@@ -1,0 +1,11 @@
+dev_test_private_ip = "10.20.1.76"
+peering_shared_dev_id = "pcx-04638f0c11007c731"
+peering_shared_prod_id = "pcx-09e7b62a7d14e7198"
+prod_test_private_ip = "10.10.1.26"
+shared_test_private_ip = "10.0.1.211"
+verification_commands = {
+  "dev_to_prod (should FAIL)" = "ping 10.10.1.26"
+  "dev_to_shared (should succeed)" = "ping 10.0.1.211"
+  "prod_to_dev (should FAIL)" = "ping 10.20.1.76"
+  "prod_to_shared (should succeed)" = "ping 10.0.1.211"
+}

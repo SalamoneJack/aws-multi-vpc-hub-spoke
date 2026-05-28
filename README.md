@@ -7,6 +7,19 @@
 
 Enterprise-grade network segmentation using a hub-and-spoke VPC topology. Three VPCs — `prod`, `dev`, and `shared-services` — connected via VPC peering with route tables that enforce strict segmentation: prod and dev can each reach shared services, but cannot reach each other.
 
+> ### "The failed ping IS the success screenshot"
+>
+> Captured live across 4 SSH-driven ping tests between the 3 test instances. Both spokes reach the hub (sub-1ms); **neither spoke can reach the other** — proving the security model is enforced at the network layer, not by trust.
+>
+> ```
+> prod → shared : 0% loss, 0.563ms avg    ✓ via shared↔prod peering
+> dev  → shared : 0% loss, 0.583ms avg    ✓ via shared↔dev peering
+> prod → dev    : 100% packet loss        ✗ no peering, no route
+> dev  → prod   : 100% packet loss        ✗ no peering, no route
+> ```
+>
+> **Full evidence + raw AWS describe JSON:** [`screenshots/`](screenshots/)
+
 ## The Problem
 
 In enterprise networks, you don't put production and development on the same segment. A misconfigured dev workload shouldn't be able to reach a production database. This is the cloud equivalent of a foundational network design principle: segment by security zone, then explicitly allow only what's required.

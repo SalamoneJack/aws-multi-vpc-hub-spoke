@@ -1,0 +1,30 @@
+
+== prod-test (44.193.76.153) -> shared-test (10.0.1.211) — should SUCCEED ==
+PING 10.0.1.211 (10.0.1.211) 56(84) bytes of data.
+64 bytes from 10.0.1.211: icmp_seq=1 ttl=64 time=0.799 ms
+64 bytes from 10.0.1.211: icmp_seq=2 ttl=64 time=0.452 ms
+64 bytes from 10.0.1.211: icmp_seq=3 ttl=64 time=0.439 ms
+
+--- 10.0.1.211 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2033ms
+rtt min/avg/max/mdev = 0.439/0.563/0.799/0.166 ms
+== dev-test (18.207.102.40) -> shared-test (10.0.1.211) — should SUCCEED ==
+PING 10.0.1.211 (10.0.1.211) 56(84) bytes of data.
+64 bytes from 10.0.1.211: icmp_seq=1 ttl=64 time=0.851 ms
+64 bytes from 10.0.1.211: icmp_seq=2 ttl=64 time=0.408 ms
+64 bytes from 10.0.1.211: icmp_seq=3 ttl=64 time=0.492 ms
+
+--- 10.0.1.211 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2066ms
+rtt min/avg/max/mdev = 0.408/0.583/0.851/0.192 ms
+== prod-test (44.193.76.153) -> dev-test (10.20.1.76) — should FAIL ==
+PING 10.20.1.76 (10.20.1.76) 56(84) bytes of data.
+
+--- 10.20.1.76 ping statistics ---
+3 packets transmitted, 0 received, 100% packet loss, time 2068ms
+
+== dev-test (18.207.102.40) -> prod-test (10.10.1.26) — should FAIL ==
+PING 10.10.1.26 (10.10.1.26) 56(84) bytes of data.
+
+--- 10.10.1.26 ping statistics ---
+3 packets transmitted, 0 received, 100% packet loss, time 2059ms
